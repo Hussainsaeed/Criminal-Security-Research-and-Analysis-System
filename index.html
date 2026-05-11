@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NEXUS OS v8.0 | Elite Cyber Environment</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg-color: #000;
+    --win-bg: rgba(15, 23, 42, 0.75);
+    --win-header: rgba(15, 23, 42, 0.95);
+    --win-border: rgba(6, 182, 212, 0.4);
+    --primary: #06b6d4; /* Cyan */
+    --primary-glow: rgba(6, 182, 212, 0.6);
+    --accent: #8b5cf6;  /* Violet */
+    --danger: #f43f5e;
+    --success: #10b981;
+    --text: #e2e8f0;
+    --taskbar-height: 50px;
+    --font-main: 'Cairo', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; user-select: none; outline: none; }
+  
+  body {
+    margin: 0; overflow: hidden; height: 100vh;
+    font-family: var(--font-main);
+    background: var(--bg-color);
+    color: var(--text);
+  }
+
+  /* --- ANIMATED BACKGROUND --- */
+  #bgCanvas {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: -1; background: radial-gradient(circle at center, #111827 0%, #000 100%);
+  }
+
+  /* --- BOOT SCREEN --- */
+  #bootScreen {
+    position: fixed; inset: 0; background: #000; z-index: 9999;
+    color: var(--primary); font-family: var(--font-mono); padding: 2rem;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+  }
+  .loader-bar {
+    width: 300px; height: 4px; background: #333; margin-top: 20px;
+    position: relative; overflow: hidden; border-radius: 2px;
+  }
+  .loader-fill {
+    position: absolute; left: 0; top: 0; height: 100%; width: 0%;
+    background: var(--primary); box-shadow: 0 0 10px var(--primary);
+    transition: width 0.2s;
+  }
+
+  /* --- LOGIN SCREEN --- */
+  #loginScreen {
+    position: fixed; inset: 0; 
+    z-index: 9000; display: none; flex-direction: column;
+    align-items: center; justify-content: center; opacity: 0; transition: opacity 1s;
+  }
+  
+  .login-box {
+    text-align: center; background: rgba(255,255,255,0.03);
+    padding: 3rem; border-radius: 20px; border: 1px solid var(--win-border);
+    backdrop-filter: blur(15px); box-shadow: 0 0 50px rgba(6, 182, 212, 0.15);
+    transform: translateY(20px); animation: floatUp 0.5s forwards;
+  }
+  @keyframes floatUp { to { transform: translateY(0); } }
+
+  .user-avatar {
+    width: 100px; height: 100px; background: linear-gradient(135deg, var(--primary), var(--accent));
+    border-radius: 50%; margin: 0 auto 1.5rem; display: flex;
+    align-items: center; justify-content: center; font-size: 3rem; color: #fff;
+    box-shadow: 0 0 20px var(--primary-glow);
+  }
+  .login-input {
+    background: rgba(0,0,0,0.6); border: 1px solid var(--win-border);
+    padding: 12px; color: #fff; border-radius: 8px; text-align: center;
+    width: 240px; margin-top: 15px; font-family: var(--font-mono);
+    font-size: 1.1rem; transition: 0.3s;
+  }
+  .login-input:focus { border-color: var(--primary); box-shadow: 0 0 15px var(--primary-glow); }
+
+  /* --- DESKTOP --- */
+  #desktop {
+    position: absolute; top: 0; left: 0; right: 0; bottom: var(--taskbar-height);
+    padding: 20px; display: none; flex-direction: column; flex-wrap: wrap; 
+    align-content: flex-start; gap: 20px; opacity: 0; transition: opacity 1s;
+  }
+
+  .desktop-icon {
+    width: 110px; text-align: center; cursor: pointer;
+    padding: 15px 5px; border-radius: 12px; transition: 0.2s;
+    color: #fff; position: relative;
+  }
+  .desktop-icon:hover { background: rgba(255,255,255,0.08); backdrop-filter: blur(5px); }
+  .desktop-icon i { 
+    font-size: 2.8rem; margin-bottom: 10px; display: block; 
+    filter: drop-shadow(0 0 15px rgba(255,255,255,0.2)); 
+    transition: transform 0.2s;
+  }
+  .desktop-icon:hover i { transform: scale(1.1); }
+  
+  /* --- WINDOWS --- */
+  .window {
+    position: absolute; width: 750px; height: 500px;
+    background: var(--win-bg); border: 1px solid var(--win-border);
+    backdrop-filter: blur(25px); border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column;
+    resize: both; overflow: hidden; min-width: 350px; min-height: 250px;
+    animation: openWin 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    transition: box-shadow 0.2s;
+  }
+  .window.active { border-color: var(--primary); box-shadow: 0 0 30px rgba(6, 182, 212, 0.15), 0 20px 60px rgba(0,0,0,0.6); z-index: 1000; }
+  
+  @keyframes openWin { from { transform: scale(0.9) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+
+  .win-header {
+    background: var(--win-header); padding: 12px 15px;
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: grab; border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .win-title { font-weight: bold; font-size: 0.95rem; pointer-events: none; display: flex; gap: 10px; align-items: center; color: var(--primary); text-shadow: 0 0 10px var(--primary-glow); }
+  
+  .win-controls { display: flex; gap: 8px; }
+  .win-btn { width: 14px; height: 14px; border-radius: 50%; cursor: pointer; transition: 0.2s; position: relative; }
+  .win-btn::after { content:''; position:absolute; inset:0; border-radius:50%; background:rgba(255,255,255,0.3); opacity:0; }
+  .win-btn:hover::after { opacity:1; }
+  .win-close { background: var(--danger); }
+  .win-min { background: #fbbf24; }
+  .win-max { background: var(--success); }
+
+  .win-body { flex: 1; padding: 0; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+  .app-content { padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+  /* --- TASKBAR --- */
+  #taskbar {
+    position: absolute; bottom: 0; left: 0; right: 0; height: var(--taskbar-height);
+    background: rgba(10, 10, 15, 0.85); border-top: 1px solid rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    display: flex; align-items: center; padding: 0 15px; z-index: 5000;
+  }
+  .start-btn {
+    padding: 8px 20px; background: linear-gradient(90deg, var(--primary), var(--accent)); 
+    color: white; border-radius: 8px; font-weight: bold; cursor: pointer; 
+    display: flex; align-items: center; gap: 10px; transition: 0.3s;
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); font-size: 1rem;
+  }
+  .start-btn:hover { filter: brightness(1.2); transform: translateY(-2px); }
+  
+  /* Start Menu */
+  #startMenu {
+    position: absolute; bottom: 65px; right: 15px; width: 320px;
+    background: rgba(15, 23, 42, 0.95); border: 1px solid var(--win-border);
+    border-radius: 12px; padding: 15px; backdrop-filter: blur(30px);
+    display: none; flex-direction: column; gap: 5px; box-shadow: 0 0 40px rgba(0,0,0,0.5); z-index: 5001;
+    transform-origin: bottom right; animation: popUp 0.2s ease;
+  }
+  @keyframes popUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .start-header { padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
+  .start-item {
+    padding: 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 15px;
+    color: #fff; transition: 0.2s; font-size: 0.95rem;
+  }
+  .start-item:hover { background: rgba(255,255,255,0.1); transform: translateX(-5px); }
+
+  .task-items { flex: 1; display: flex; gap: 8px; margin: 0 20px; }
+  .task-item {
+    background: rgba(255,255,255,0.03); padding: 0 20px; border-radius: 8px; height: 36px;
+    cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 10px;
+    border-bottom: 3px solid transparent; transition: 0.3s; color: #ccc;
+  }
+  .task-item:hover { background: rgba(255,255,255,0.08); }
+  .task-item.active { border-bottom-color: var(--primary); background: linear-gradient(to top, rgba(6, 182, 212, 0.1), transparent); color: #fff; text-shadow: 0 0 8px var(--primary-glow); }
+  
+  .system-tray { font-size: 0.9rem; display: flex; gap: 20px; align-items: center; padding-left: 10px; color: var(--primary); }
+
+  /* --- COMMON ELEMENTS --- */
+  button {
+    background: var(--primary); border: none; padding: 10px 20px; color: white;
+    border-radius: 6px; cursor: pointer; transition: 0.3s; font-family: var(--font-main); font-weight: bold;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  }
+  button:hover { background: var(--primary-hover); transform: translateY(-2px); }
+  button.danger { background: var(--danger); }
+  
+  input, select, textarea {
+    background: rgba(0,0,0,0.4); border: 1px solid #475569; color: white;
+    padding: 10px; border-radius: 6px; width: 100%; font-family: var(--font-mono); margin-bottom: 12px;
+    transition: 0.3s;
+  }
+  input:focus, textarea:focus { border-color: var(--primary); background: rgba(0,0,0,0.6); box-shadow: 0 0 10px rgba(6, 182, 212, 0.2); }
+
+  /* App Specifics */
+  .terminal-content { font-family: var(--font-mono); font-size: 0.9rem; padding: 15px; height: 100%; overflow-y: auto; background: rgba(0,0,0,0.8); color: #ccc; }
+  .cmd-line { display: flex; color: var(--success); text-shadow: 0 0 5px var(--success); }
+  .cmd-input { border: none; background: transparent; outline: none; flex: 1; color: #fff; margin-top: -2px; box-shadow: none !important; }
+
+  /* Notification */
+  #notificationArea { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+  .toast {
+    background: rgba(15, 23, 42, 0.9); border-right: 4px solid var(--primary);
+    backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 8px; color: #fff; width: 320px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex; align-items: center; gap: 15px; border: 1px solid rgba(255,255,255,0.05);
+  }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+  /* --- NEW APPS STYLES --- */
+  
+  /* Face Match */
+  .face-scan-box {
+    border: 2px dashed var(--primary); border-radius: 12px; height: 300px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden; background: rgba(0,0,0,0.3);
+  }
+  .face-scanner {
+    width: 200px; height: 200px; border: 2px solid var(--danger); border-radius: 50%;
+    position: absolute; box-shadow: 0 0 20px rgba(244, 63, 94, 0.2);
+    display: none;
+  }
+  .scan-beam {
+    position: absolute; width: 100%; height: 2px; background: var(--success);
+    top: 0; animation: scanDown 2s infinite linear; box-shadow: 0 0 10px var(--success);
+    display: none;
+  }
+  @keyframes scanDown { 0% { top: 0; opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+  /* Fingerprint */
+  .finger-pad {
+    width: 150px; height: 200px; border: 2px solid var(--win-border); border-radius: 20px;
+    margin: 20px auto; background: rgba(0,0,0,0.5); position: relative;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .finger-icon { font-size: 5rem; color: #444; transition: 0.5s; }
+  .finger-beam {
+    position: absolute; width: 100%; height: 5px; background: var(--primary);
+    top: 0; box-shadow: 0 0 15px var(--primary); display: none;
+    animation: scanFinger 1.5s infinite alternate;
+  }
+  @keyframes scanFinger { from { top: 0; } to { top: 100%; } }
+
+  /* GhostTrack (Search) */
+  .profile-card {
+    display: flex; gap: 20px; background: rgba(255,255,255,0.05); padding: 20px;
+    border-radius: 12px; border: 1px solid var(--win-border); margin-top: 20px;
+    animation: fadeIn 0.5s;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .profile-pic {
+    width: 100px; height: 100px; background: #000; border: 2px solid var(--primary);
+    display: flex; align-items: center; justify-content: center; font-size: 3rem; color: #333;
+  }
+
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<div id="bootScreen">
+  <div style="font-size: 4rem; margin-bottom: 20px;"><i class="fa-brands fa-linux"></i></div>
+  <h1 style="margin:0; letter-spacing: 5px;">NEXUS OS <span style="font-size:0.5em; color:var(--accent)">v8.0</span></h1>
+  <div class="loader-bar"><div class="loader-fill" id="bootProgress"></div></div>
+  <div id="bootText" style="margin-top:15px; color:#666; font-size:0.9rem;">Initializing Kernel...</div>
+</div>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="user-avatar"><i class="fa-solid fa-user-astronaut"></i></div>
+    <h2 style="margin:0; color:var(--text)">Administrator</h2>
+    <p style="color:var(--primary); margin-bottom:20px; font-size:0.9rem;">SECURE TERMINAL ACCESS</p>
+    <input type="password" id="loginPass" class="login-input" placeholder="Password (admin)" onkeydown="checkLogin(event)">
+    <div style="margin-top:10px; font-size:0.8rem; color:var(--danger); height:20px;" id="loginMsg"></div>
+  </div>
+</div>
+
+<div id="desktop">
+  <div class="desktop-icon" style="color:#38bdf8" ondblclick="openWindow('soc')">
+    <i class="fa-solid fa-shield-halved"></i>
+    <span>SOC Center</span>
+  </div>
+  <div class="desktop-icon" style="color:#2dd4bf" ondblclick="openWindow('facematch')">
+    <i class="fa-solid fa-id-card"></i>
+    <span>BioFace ID</span>
+  </div>
+  <div class="desktop-icon" style="color:#c084fc" ondblclick="openWindow('fingerprint')">
+    <i class="fa-solid fa-fingerprint"></i>
+    <span>DactylScan</span>
+  </div>
+  <div class="desktop-icon" style="color:#fbbf24" ondblclick="openWindow('ghosttrack')">
+    <i class="fa-solid fa-user-secret"></i>
+    <span>GhostTrack</span>
+  </div>
+
+  <div class="desktop-icon" style="color:#f472b6" ondblclick="openWindow('forensics')">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span>Forensics</span>
+  </div>
+  <div class="desktop-icon" style="color:#4ade80" ondblclick="openWindow('terminal')">
+    <i class="fa-solid fa-terminal"></i>
+    <span>Terminal</span>
+  </div>
+  <div class="desktop-icon" style="color:#fbbf24" ondblclick="openWindow('netshark')">
+    <i class="fa-solid fa-network-wired"></i>
+    <span>NetShark</span>
+  </div>
+  <div class="desktop-icon" style="color:#a78bfa" ondblclick="openWindow('crypto')">
+    <i class="fa-solid fa-key"></i>
+    <span>CryptoTool</span>
+  </div>
+  <div class="desktop-icon" style="color:#fff" ondblclick="openWindow('editor')">
+    <i class="fa-solid fa-code"></i>
+    <span>Code Nexus</span>
+  </div>
+  <div class="desktop-icon" style="color:#f43f5e" ondblclick="openWindow('taskmgr')">
+    <i class="fa-solid fa-microchip"></i>
+    <span>Task Mgr</span>
+  </div>
+</div>
+
+<div id="startMenu">
+  <div class="start-header">
+    <div style="width:40px; height:40px; background:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.2rem;"><i class="fa-solid fa-user"></i></div>
+    <div>
+      <div style="font-weight:bold;">Root User</div>
+      <div style="font-size:0.8rem; color:#aaa;">System Administrator</div>
+    </div>
+  </div>
+  <div class="start-item" onclick="openWindow('soc'); toggleStartMenu()"><i class="fa-solid fa-chart-pie" style="color:#38bdf8"></i> SOC Dashboard</div>
+  <div class="start-item" onclick="openWindow('ghosttrack'); toggleStartMenu()"><i class="fa-solid fa-user-secret" style="color:#fbbf24"></i> GhostTrack Search</div>
+  <div class="start-item" onclick="openWindow('terminal'); toggleStartMenu()"><i class="fa-solid fa-terminal" style="color:#4ade80"></i> Terminal</div>
+  <div class="start-item" onclick="openWindow('taskmgr'); toggleStartMenu()"><i class="fa-solid fa-microchip" style="color:#f43f5e"></i> Task Manager</div>
+  <div style="height:1px; background:rgba(255,255,255,0.1); margin:10px 0;"></div>
+  <div class="start-item" onclick="location.reload()"><i class="fa-solid fa-power-off" style="color:var(--danger)"></i> Shutdown System</div>
+</div>
+
+<div id="taskbar">
+  <div class="start-btn" onclick="toggleStartMenu()"><i class="fa-brands fa-windows"></i> Start</div>
+  <div class="task-items" id="taskItems"></div>
+  <div class="system-tray">
+    <i class="fa-solid fa-bell"></i>
+    <i class="fa-solid fa-wifi"></i>
+    <span id="clock" style="font-family:var(--font-mono); color:#fff; font-weight:bold;">00:00</span>
+  </div>
+</div>
+
+<div id="notificationArea"></div>
+
+<template id="app-soc">
+  <div class="app-content">
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px; margin-bottom:15px;">
+      <div style="background:rgba(244, 63, 94, 0.1); padding:15px; border-radius:12px; border:1px solid rgba(244, 63, 94, 0.3); text-align:center;">
+        <h4 style="margin:0; color:#fda4af; font-size:0.9rem;">THREAT LEVEL</h4>
+        <span style="font-size:1.8rem; font-weight:bold; color:var(--danger); text-shadow:0 0 10px var(--danger);">ELEVATED</span>
+      </div>
+      <div style="background:rgba(251,191,36,0.1); padding:15px; border-radius:12px; border:1px solid rgba(251,191,36,0.3); text-align:center;">
+        <h4 style="margin:0; color:#fcd34d; font-size:0.9rem;">ALERTS</h4>
+        <span style="font-size:1.8rem; font-weight:bold; color:#fbbf24;" id="alertCount">0</span>
+      </div>
+      <div style="background:rgba(16,185,129,0.1); padding:15px; border-radius:12px; border:1px solid rgba(16,185,129,0.3); text-align:center;">
+        <h4 style="margin:0; color:#6ee7b7; font-size:0.9rem;">SYSTEM STATUS</h4>
+        <span style="font-size:1.8rem; font-weight:bold; color:var(--success);">SECURE</span>
+      </div>
+    </div>
+    <div style="height:220px; margin-bottom:15px; background:rgba(0,0,0,0.3); padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+      <canvas id="socChart"></canvas>
+    </div>
+    <div style="flex:1; background:rgba(0,0,0,0.3); border-radius:12px; padding:0; overflow:hidden; border:1px solid rgba(255,255,255,0.05);">
+      <div style="padding:10px; background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.05); font-weight:bold; color:var(--primary);">
+        <i class="fa-solid fa-list-ul"></i> Real-time Logs
+      </div>
+      <div style="overflow-y:auto; height:calc(100% - 40px); padding:10px;">
+        <table style="width:100%; text-align:left; font-size:0.85rem; border-collapse: collapse;">
+          <thead style="color:#777; border-bottom:1px solid #333;"><tr><th style="padding:5px;">Source</th><th>Type</th><th>Target</th><th>Action</th></tr></thead>
+          <tbody id="socTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="app-facematch">
+  <div class="app-content">
+    <div style="display:flex; gap:15px; height:100%;">
+      <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
+        <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
+          <h4 style="margin:0 0 10px 0; color:var(--primary);">Target Source</h4>
+          <input type="file" style="margin-bottom:5px;">
+        </div>
+        <div class="face-scan-box" id="faceScanBox">
+          <div class="scan-beam" id="faceBeam"></div>
+          <div class="face-scanner" id="faceTarget"></div>
+          <i class="fa-solid fa-user" style="font-size:8rem; color:#333;" id="faceIcon"></i>
+        </div>
+      </div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
+        <div style="background:#111; border:1px solid #333; flex:1; padding:10px; font-family:var(--font-mono); font-size:0.8rem; overflow-y:auto;" id="faceLog">
+          <div style="color:#666;">[SYSTEM] BioFace Engine Ready...</div>
+        </div>
+        <button onclick="startFaceScan()" class="danger" style="width:100%;">INITIATE SCAN</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="app-fingerprint">
+  <div class="app-content" style="align-items:center; text-align:center;">
+    <h3 style="color:var(--accent);">DactylScan Biometric</h3>
+    <div class="finger-pad">
+      <div class="finger-beam" id="fingerBeam"></div>
+      <i class="fa-solid fa-fingerprint finger-icon" id="fingerIcon"></i>
+    </div>
+    <div style="width:80%; height:4px; background:#333; margin:20px 0; border-radius:2px; overflow:hidden;">
+      <div id="fingerProgress" style="width:0%; height:100%; background:var(--accent); transition:width 0.1s;"></div>
+    </div>
+    <div id="fingerStatus" style="font-family:var(--font-mono); color:#aaa; margin-bottom:20px;">Place finger on scanner</div>
+    <button onclick="startFingerScan()">SCAN NOW</button>
+  </div>
+</template>
+
+<template id="app-ghosttrack">
+  <div class="app-content">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
+      <input type="text" id="gtName" placeholder="Full Name">
+      <input type="text" id="gtID" placeholder="National ID / Passport">
+      <input type="text" id="gtPhone" placeholder="Phone Number">
+      <select id="gtRegion">
+        <option>Middle East</option>
+        <option>Europe</option>
+        <option>North America</option>
+        <option>Asia Pac</option>
+      </select>
+    </div>
+    <button onclick="startGhostSearch()" style="width:100%; background:var(--warning); color:#000; font-weight:bold; margin-bottom:15px;">
+      <i class="fa-solid fa-radar"></i> START SEARCH
+    </button>
+    
+    <div id="gtResults" style="flex:1; overflow-y:auto; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
+      <div style="text-align:center; color:#555; margin-top:50px;">
+        <i class="fa-solid fa-magnifying-glass" style="font-size:3rem; margin-bottom:10px;"></i>
+        <br>Waiting for input...
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="app-forensics">
+  <div class="app-content">
+    <div style="margin-bottom:15px; padding:15px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px dashed #444;">
+      <label style="display:block; margin-bottom:8px; color:#aaa; font-weight:bold;">Load Evidence File:</label>
+      <input type="file" id="forensicFile" onchange="handleFile(this)" style="margin:0;">
+    </div>
+    
+    <div style="display:flex; gap:15px; height:100%; min-height:0;">
+      <div style="flex:2; display:flex; flex-direction:column; gap:10px;">
+        <div id="imgPreview" style="flex:1; border:1px solid #333; border-radius:8px; display:flex; justify-content:center; align-items:center; background-size:contain; background-repeat:no-repeat; background-position:center; min-height:200px; background-color:rgba(0,0,0,0.5);">
+          <span style="color:#555"><i class="fa-regular fa-image fa-2x"></i><br>No Preview</span>
+        </div>
+        <div style="display:flex; gap:5px; flex-wrap:wrap;">
+          <button onclick="applyFilter('grayscale')" style="padding:5px 15px; font-size:0.8rem;">Grayscale</button>
+          <button onclick="applyFilter('invert')" style="padding:5px 15px; font-size:0.8rem;">Invert</button>
+          <button onclick="applyFilter('contrast')" style="padding:5px 15px; font-size:0.8rem;">Contrast</button>
+          <button onclick="applyFilter('reset')" style="padding:5px 15px; font-size:0.8rem; background:#333;">Reset</button>
+        </div>
+        <div class="panel" style="background:rgba(0,0,0,0.3); padding:10px; border-radius:6px; border-left:3px solid var(--accent);">
+          <strong style="font-size:0.8rem; color:#aaa;">SHA-256 HASH:</strong>
+          <div id="fileHash" style="font-family:var(--font-mono); font-size:0.8rem; color:var(--primary); word-break:break-all; margin-top:2px;">Pending...</div>
+        </div>
+      </div>
+      
+      <div style="flex:1; background:#050505; border:1px solid #333; border-radius:8px; padding:10px; overflow:hidden; display:flex; flex-direction:column;">
+        <strong style="color:var(--success); border-bottom:1px solid #222; padding-bottom:5px; margin-bottom:5px; font-size:0.8rem;">HEX DUMP</strong>
+        <div id="hexContent" class="hex-view" style="overflow-y:auto; flex:1;">Waiting for file...</div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="app-terminal">
+  <div class="terminal-content" onclick="document.getElementById('realCmdInput').focus()">
+    <div style="color:var(--primary); margin-bottom:15px;">
+      <pre style="margin:0; font-size:0.6rem; line-height:1;">
+  _   _  ________  ___   _   _  _____ 
+ | \ | ||  ___|\ \/ / | | | |/  ___|
+ |  \| || |__   >  <| | | | |\ `--. 
+ | . ` ||  __| / /\ \ | | | | `--. \
+ | |\  || |___/ /  \ \ |_| | /\__/ /
+ \_| \_/\____/_/    \_\___/  \____/  v8.0
+      </pre>
+      <br>
+      Connected to secure shell (ssh).<br>
+      Type 'help' for command list.
+    </div>
+    <div id="termHistory"></div>
+    <div class="cmd-line">
+      <span id="termPrompt">root@nexus:~$ </span>
+      <input type="text" id="realCmdInput" class="cmd-input" autocomplete="off" onkeydown="handleTerminal(event)">
+    </div>
+  </div>
+</template>
+
+<template id="app-taskmgr">
+  <div class="app-content">
+    <div style="display:flex; gap:15px; height:100px; margin-bottom:15px;">
+      <div style="flex:1; background:rgba(0,0,0,0.3); border:1px solid #333; border-radius:8px; padding:10px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+        <span style="color:#aaa; font-size:0.8rem;">CPU Usage</span>
+        <span style="font-size:2rem; font-weight:bold; color:var(--primary);" id="cpuVal">0%</span>
+        <div style="width:80%; height:4px; background:#333; margin-top:5px; border-radius:2px;"><div id="cpuBar" style="width:0%; height:100%; background:var(--primary); transition:width 0.5s;"></div></div>
+      </div>
+      <div style="flex:1; background:rgba(0,0,0,0.3); border:1px solid #333; border-radius:8px; padding:10px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+        <span style="color:#aaa; font-size:0.8rem;">Memory</span>
+        <span style="font-size:2rem; font-weight:bold; color:var(--accent);" id="memVal">0%</span>
+        <div style="width:80%; height:4px; background:#333; margin-top:5px; border-radius:2px;"><div id="memBar" style="width:0%; height:100%; background:var(--accent); transition:width 0.5s;"></div></div>
+      </div>
+    </div>
+    <div style="flex:1; background:rgba(0,0,0,0.3); border:1px solid #333; border-radius:8px; overflow:hidden; display:flex; flex-direction:column;">
+      <table style="width:100%; text-align:left; border-collapse: collapse;">
+        <thead style="background:rgba(255,255,255,0.05); color:#fff;"><tr><th style="padding:10px;">Name</th><th>PID</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="procTable" style="font-family:var(--font-mono); font-size:0.9rem;">
+          <tr><td>System Kernel</td><td>0</td><td style="color:var(--success)">Running</td><td>-</td></tr>
+          <tr><td>Desktop WM</td><td>421</td><td style="color:var(--success)">Running</td><td>-</td></tr>
+          <tr><td>Network Daemon</td><td>88</td><td style="color:var(--success)">Running</td><td>-</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<template id="app-netshark">
+  <div class="app-content">
+    <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">
+      <button onclick="toggleSniffer()" id="sniffBtn" class="danger" style="padding:8px 15px;"><i class="fa-solid fa-stop"></i> Stop</button>
+      <input type="text" placeholder="Filter: tcp, udp, 80, 443..." style="margin:0; flex:1;">
+      <span id="packetCount" style="font-family:var(--font-mono); color:#aaa; font-size:0.9rem;">0 pkts</span>
+    </div>
+    <div id="packetContainer" style="flex:1; background:#050505; border:1px solid #333; overflow-y:auto; font-family:var(--font-mono); font-size:0.85rem; border-radius:4px;">
+      <div style="display:grid; grid-template-columns: 60px 140px 140px 1fr; padding:8px 5px; background:#18181b; color:#aaa; position:sticky; top:0; font-weight:bold;">
+        <span>Proto</span><span>Source</span><span>Dest</span><span>Info</span>
+      </div>
+    </div>
+    <div style="height:100px; margin-top:10px; background:#111; border-top:2px solid var(--primary); padding:10px; font-family:var(--font-mono); font-size:0.8rem; overflow-y:auto;">
+      <strong style="color:var(--primary)">Packet Details:</strong>
+      <div id="pktDetail" style="color:#ddd; margin-top:5px; line-height:1.4;">Select a packet to inspect payload...</div>
+    </div>
+  </div>
+</template>
+
+<template id="app-crypto">
+  <div class="app-content">
+    <label style="color:#aaa;">Input Payload:</label>
+    <textarea id="cryptoInput" rows="5" placeholder="Paste text here..."></textarea>
+    
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px;">
+      <select id="cryptoMethod" style="width:auto; margin:0; flex:1;">
+        <option value="base64">Base64</option>
+        <option value="hex">Hexadecimal</option>
+        <option value="rot13">ROT13</option>
+        <option value="binary">Binary</option>
+        <option value="url">URL Encode</option>
+      </select>
+      <button onclick="doCrypto('enc')">Encrypt</button>
+      <button onclick="doCrypto('dec')" style="background:#333;">Decrypt</button>
+    </div>
+    
+    <label style="color:#aaa;">Result:</label>
+    <textarea id="cryptoOutput" rows="5" readonly style="background:rgba(0,0,0,0.2); border-color:var(--success); color:var(--success);"></textarea>
+    <button onclick="copyCrypto()" style="margin-top:-5px; width:100%; background:var(--success); color:#000;">Copy to Clipboard</button>
+  </div>
+</template>
+
+<template id="app-editor">
+  <div style="height:100%; display:flex; flex-direction:column;">
+    <div style="background:#1e1e1e; padding:8px; display:flex; gap:2px;">
+      <div style="background:#2d2d2d; padding:5px 15px; font-size:0.8rem; color:#fff; border-top:2px solid var(--primary);">config.js</div>
+      <div style="padding:5px 15px; font-size:0.8rem; color:#888; cursor:pointer;">notes.txt</div>
+      <div style="margin-right:auto;"></div>
+      <button style="padding:4px 10px; font-size:0.7rem;" onclick="notify('Saved', 'File written to virtual disk.', 'success')"><i class="fa-solid fa-save"></i></button>
+    </div>
+    <textarea class="editor-area" spellcheck="false" style="background:#1e1e1e; color:#d4d4d4; border:none; resize:none; font-family:'Consolas', monospace; padding:15px; line-height:1.6; font-size:0.9rem;">
+/* * NEXUS OS KERNEL CONFIGURATION
+ * SECURITY LEVEL: CLASS 5
+ */
+
+const system = {
+    firewall: true,
+    ports: [22, 80, 443, 8080],
+    encryption: 'AES-256-GCM',
+    rootUser: true
+};
+
+function init() {
+    console.log('System ready.');
+}
+    </textarea>
+    <div style="background:#007acc; color:#fff; padding:2px 10px; font-size:0.7rem; font-family:sans-serif; text-align:left;">
+      Ln 12, Col 1 | JavaScript | UTF-8
+    </div>
+  </div>
+</template>
+
+<script>
+/* --- ANIMATED BACKGROUND (CANVAS) --- */
+const canvas = document.getElementById('bgCanvas');
+const ctx = canvas.getContext('2d');
+let width, height;
+let particles = [];
+
+function initCanvas() {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+  particles = [];
+  for(let i=0; i<80; i++) {
+    particles.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: (Math.random() - 0.5) * 1.5,
+      size: Math.random() * 2 + 1
+    });
+  }
+}
+
+function animateCanvas() {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; // Trail effect
+  ctx.fillRect(0, 0, width, height);
+  
+  ctx.fillStyle = '#06b6d4';
+  ctx.strokeStyle = 'rgba(6, 182, 212, 0.15)';
+  
+  particles.forEach((p, i) => {
+    p.x += p.vx;
+    p.y += p.vy;
+    
+    // Bounce
+    if(p.x < 0 || p.x > width) p.vx *= -1;
+    if(p.y < 0 || p.y > height) p.vy *= -1;
+    
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Connect lines
+    for(let j=i+1; j<particles.length; j++) {
+      const p2 = particles[j];
+      const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+      if(dist < 150) {
+        ctx.lineWidth = 1 - (dist/150);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+      }
+    }
+  });
+  requestAnimationFrame(animateCanvas);
+}
+
+window.addEventListener('resize', initCanvas);
+initCanvas();
+animateCanvas();
+
+/* --- SYSTEM CORE --- */
+let zIndexCounter = 100;
+let windowCount = 0;
+let activeWindow = null;
+
+// Boot Sequence
+window.onload = function() {
+  const bootText = document.getElementById('bootText');
+  const bar = document.getElementById('bootProgress');
+  let progress = 0;
+  
+  const interval = setInterval(() => {
+    progress += Math.random() * 5;
+    if(progress > 100) progress = 100;
+    bar.style.width = progress + '%';
+    
+    if(progress > 20) bootText.innerText = "Loading Core Modules...";
+    if(progress > 50) bootText.innerText = "Initializing Graphics...";
+    if(progress > 80) bootText.innerText = "Starting Secure Services...";
+    
+    if (progress >= 100) {
+      clearInterval(interval);
+      setTimeout(() => {
+        document.getElementById('bootScreen').style.opacity = '0';
+        setTimeout(() => {
+          document.getElementById('bootScreen').remove();
+          const login = document.getElementById('loginScreen');
+          login.style.display = 'flex';
+          setTimeout(() => login.style.opacity = '1', 100);
+          document.getElementById('loginPass').focus();
+        }, 500);
+      }, 500);
+    }
+  }, 100);
+
+  updateClock();
+  setInterval(updateClock, 1000);
+};
+
+function checkLogin(e) {
+  if (e.key === 'Enter') {
+    const val = e.target.value;
+    if (val === 'admin') {
+      const login = document.getElementById('loginScreen');
+      login.style.opacity = '0';
+      setTimeout(() => {
+        login.style.display = 'none';
+        const desk = document.getElementById('desktop');
+        desk.style.display = 'flex';
+        setTimeout(() => desk.style.opacity = '1', 100);
+        notify('System Ready', 'Welcome back, Administrator.', 'success');
+        setTimeout(() => openWindow('soc'), 600);
+      }, 800);
+    } else {
+      const msg = document.getElementById('loginMsg');
+      msg.innerText = "ACCESS DENIED";
+      e.target.value = "";
+      setTimeout(() => msg.innerText = "", 2000);
+    }
+  }
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').innerText = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function notify(title, msg, type='info') {
+  const area = document.getElementById('notificationArea');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.style.borderRightColor = type === 'success' ? 'var(--success)' : (type === 'error' ? 'var(--danger)' : 'var(--primary)');
+  toast.innerHTML = `
+    <i class="fa-solid ${type === 'success' ? 'fa-check-circle' : 'fa-info-circle'}" style="font-size:1.5rem; color:${type === 'success' ? 'var(--success)' : 'var(--primary)'}"></i>
+    <div>
+      <div style="font-weight:bold; font-size:0.95rem;">${title}</div>
+      <div style="font-size:0.85rem; opacity:0.8">${msg}</div>
+    </div>
+  `;
+  area.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(100%)';
+    setTimeout(() => toast.remove(), 400);
+  }, 4000);
+}
+
+function toggleStartMenu() {
+  const menu = document.getElementById('startMenu');
+  menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+}
+
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('startMenu');
+  const btn = document.querySelector('.start-btn');
+  if (menu.style.display === 'flex' && !menu.contains(e.target) && !btn.contains(e.target)) {
+    menu.style.display = 'none';
+  }
+});
+
+/* --- WINDOW MANAGER --- */
+function openWindow(appId) {
+  const id = `win-${windowCount++}`;
+  const desktop = document.getElementById('desktop');
+  const template = document.getElementById(`app-${appId}`);
+  
+  const titles = {
+    'soc': 'SOC Dashboard',
+    'facematch': 'BioFace ID System v4.2',
+    'fingerprint': 'DactylScan Biometric',
+    'ghosttrack': 'GhostTrack OSINT Engine',
+    'forensics': 'Digital Forensic Lab',
+    'terminal': 'Terminal - root',
+    'netshark': 'NetShark Packet Analyzer',
+    'crypto': 'CryptoTool v2.0',
+    'editor': 'Code Nexus',
+    'taskmgr': 'Task Manager'
+  };
+
+  const win = document.createElement('div');
+  win.className = 'window';
+  win.id = id;
+  // Cascade windows
+  win.style.left = (80 + (windowCount % 8) * 40) + 'px';
+  win.style.top = (60 + (windowCount % 8) * 40) + 'px';
+  win.style.zIndex = ++zIndexCounter;
+  
+  win.innerHTML = `
+    <div class="win-header" onmousedown="startDrag(event, '${id}')">
+      <div class="win-title">
+        <i class="fa-solid fa-cube"></i> ${titles[appId] || 'Application'}
+      </div>
+      <div class="win-controls">
+        <div class="win-btn win-min" onclick="minimizeWindow('${id}')"></div>
+        <div class="win-btn win-max" onclick="maximizeWindow('${id}')"></div>
+        <div class="win-btn win-close" onclick="closeWindow('${id}')"></div>
+      </div>
+    </div>
+    <div class="win-body" onclick="focusWindow('${id}')">${template.innerHTML}</div>
+  `;
+  
+  desktop.appendChild(win);
+  addToTaskbar(id, titles[appId] || 'App');
+  focusWindow(id);
+
+  // App specific init
+  if(appId === 'soc') initSOC(id);
+  if(appId === 'netshark') initSniffer(id);
+  if(appId === 'taskmgr') initTaskMgr(id);
+}
+
+function closeWindow(id) {
+  const win = document.getElementById(id);
+  win.style.transform = 'scale(0.9)';
+  win.style.opacity = '0';
+  setTimeout(() => win.remove(), 200);
+  const taskItem = document.getElementById(`task-${id}`);
+  if(taskItem) taskItem.remove();
+}
+
+function minimizeWindow(id) {
+  const win = document.getElementById(id);
+  win.style.display = 'none';
+  const taskItem = document.getElementById(`task-${id}`);
+  taskItem.classList.remove('active');
+}
+
+function maximizeWindow(id) {
+  const win = document.getElementById(id);
+  if (win.style.width === '100%') {
+    win.style.width = '750px';
+    win.style.height = '500px';
+    win.style.top = '60px';
+    win.style.left = '80px';
+    win.style.borderRadius = '12px';
+  } else {
+    win.style.width = '100%';
+    win.style.height = `calc(100% - var(--taskbar-height))`;
+    win.style.top = '0';
+    win.style.left = '0';
+    win.style.borderRadius = '0';
+  }
+}
+
+function focusWindow(id) {
+  const win = document.getElementById(id);
+  if(win) {
+    if(activeWindow) activeWindow.classList.remove('active');
+    activeWindow = win;
+    win.classList.add('active');
+    
+    win.style.display = 'flex';
+    win.style.zIndex = ++zIndexCounter;
+    
+    document.querySelectorAll('.task-item').forEach(i => i.classList.remove('active'));
+    const taskItem = document.getElementById(`task-${id}`);
+    if(taskItem) taskItem.classList.add('active');
+  }
+}
+
+function addToTaskbar(id, title) {
+  const item = document.createElement('div');
+  item.className = 'task-item active';
+  item.id = `task-${id}`;
+  // Extract just the name
+  let name = title.split(' ')[0];
+  if(name.length > 10) name = name.substring(0,8) + '...';
+  
+  item.innerHTML = `<i class="fa-regular fa-window-maximize"></i> ${name}`;
+  item.onclick = () => focusWindow(id);
+  document.getElementById('taskItems').appendChild(item);
+}
+
+/* --- DRAGGABLE --- */
+let isDragging = false, startX, startY, initLeft, initTop;
+function startDrag(e, id) {
+  const win = document.getElementById(id);
+  focusWindow(id);
+  
+  // Only drag if not maximized
+  if(win.style.width === '100%') return;
+
+  isDragging = true;
+  startX = e.clientX; startY = e.clientY;
+  initLeft = win.offsetLeft; initTop = win.offsetTop;
+  
+  const moveHandler = (evt) => {
+    if (!isDragging) return;
+    win.style.left = (initLeft + evt.clientX - startX) + 'px';
+    win.style.top = (initTop + evt.clientY - startY) + 'px';
+  };
+  const upHandler = () => {
+    isDragging = false;
+    document.removeEventListener('mousemove', moveHandler);
+    document.removeEventListener('mouseup', upHandler);
+  };
+  document.addEventListener('mousemove', moveHandler);
+  document.addEventListener('mouseup', upHandler);
+}
+
+/* --- APP LOGIC: FACE MATCH --- */
+function startFaceScan() {
+  const win = document.querySelector('.window.active');
+  const beam = win.querySelector('#faceBeam');
+  const target = win.querySelector('#faceTarget');
+  const icon = win.querySelector('#faceIcon');
+  const log = win.querySelector('#faceLog');
+  
+  beam.style.display = 'block';
+  target.style.display = 'block';
+  log.innerHTML += '<div>> Analyzing facial structure...</div>';
+  
+  setTimeout(() => {
+    log.innerHTML += '<div style="color:var(--primary)">> Landmarks detected: 68 points</div>';
+  }, 1000);
+  
+  setTimeout(() => {
+    log.innerHTML += '<div>> Searching databases (Interpol, FBI)...</div>';
+  }, 2000);
+
+  setTimeout(() => {
+    beam.style.display = 'none';
+    target.style.borderColor = 'var(--success)';
+    target.style.boxShadow = '0 0 20px var(--success)';
+    icon.style.color = '#fff';
+    log.innerHTML += '<div style="color:var(--success); font-weight:bold;">> MATCH FOUND (98.2%)<br>> Name: UNKNOWN SUBJECT<br>> ID: X99-ALPHA</div>';
+  }, 3500);
+}
+
+/* --- APP LOGIC: FINGERPRINT --- */
+function startFingerScan() {
+  const win = document.querySelector('.window.active');
+  const beam = win.querySelector('#fingerBeam');
+  const icon = win.querySelector('#fingerIcon');
+  const progress = win.querySelector('#fingerProgress');
+  const status = win.querySelector('#fingerStatus');
+  
+  beam.style.display = 'block';
+  icon.style.color = '#ccc';
+  status.innerText = "Scanning dermal ridges...";
+  
+  let p = 0;
+  const int = setInterval(() => {
+    p += 2;
+    progress.style.width = p + '%';
+    if(p >= 100) {
+      clearInterval(int);
+      beam.style.display = 'none';
+      icon.style.color = 'var(--success)';
+      status.innerHTML = "<span style='color:var(--success)'>ACCESS GRANTED</span>";
+      progress.style.background = 'var(--success)';
+    }
+  }, 50);
+}
+
+/* --- APP LOGIC: GHOSTTRACK --- */
+function startGhostSearch() {
+  const win = document.querySelector('.window.active');
+  const results = win.querySelector('#gtResults');
+  results.innerHTML = '<div style="text-align:center; margin-top:50px;"><i class="fa-solid fa-circle-notch fa-spin" style="font-size:2rem; color:var(--warning)"></i><br>Deep Web Crawling...</div>';
+  
+  setTimeout(() => {
+    results.innerHTML = `
+      <div class="profile-card">
+        <div class="profile-pic"><i class="fa-solid fa-user"></i></div>
+        <div style="flex:1;">
+          <h3 style="margin:0 0 5px 0; color:var(--primary);">Target: A. M. H.</h3>
+          <div style="font-size:0.8rem; line-height:1.6; color:#ccc;">
+            <strong>Age:</strong> 34<br>
+            <strong>Last Location:</strong> Istanbul, TR<br>
+            <strong>Status:</strong> <span style="color:var(--danger)">RED NOTICE</span><br>
+            <strong>Occupation:</strong> Network Engineer
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:10px; color:var(--success); font-size:0.8rem;">> 4 Social Accounts Found<br>> 2 Flight Records Found</div>
+    `;
+  }, 2000);
+}
+
+
+/* --- APP: TASK MGR --- */
+function initTaskMgr(winId) {
+  const cpuVal = document.querySelector(`#${winId} #cpuVal`);
+  const cpuBar = document.querySelector(`#${winId} #cpuBar`);
+  const memVal = document.querySelector(`#${winId} #memVal`);
+  const memBar = document.querySelector(`#${winId} #memBar`);
+
+  const interval = setInterval(() => {
+    if(!document.getElementById(winId)) { clearInterval(interval); return; }
+    
+    const cpu = Math.floor(Math.random() * 30) + 5;
+    const mem = Math.floor(Math.random() * 40) + 20;
+    
+    cpuVal.innerText = cpu + '%';
+    cpuBar.style.width = cpu + '%';
+    memVal.innerText = mem + '%';
+    memBar.style.width = mem + '%';
+  }, 1000);
+}
+
+/* --- APP: TERMINAL --- */
+const NEXUS = {
+  user: 'root',
+  uid: 0,
+  currentPath: '/home/root',
+  history: [],
+  historyIndex: null,
+  commands: ['help','clear','ls','cd','pwd','mkdir','touch','rm','cat','ps','kill','whoami','history','scan','track','hash','encrypt','sudo','reboot','matrix'],
+  processes: [
+    { pid: 0, name: 'System Kernel', status: 'running', user: 'root' },
+    { pid: 421, name: 'Desktop WM', status: 'running', user: 'root' },
+    { pid: 88, name: 'Network Daemon', status: 'running', user: 'root' }
+  ],
+  ghostDB: [
+    { name: 'A. M. H.', profile: 'Unknown Subject', status: 'RED NOTICE' },
+    { name: 'Luna Vega', profile: 'Corporate Spy', status: 'WANTED' },
+    { name: 'Z3R0-C00L', profile: 'Blackhat', status: 'ON THE RUN' }
+  ],
+  fs: {
+    type: 'dir',
+    children: {
+      home: {
+        type: 'dir',
+        children: {
+          root: {
+            type: 'dir',
+            children: {
+              'notes.txt': { type: 'file', content: 'Meeting at 5pm' },
+              'passwords.log': { type: 'file', content: 'admin:s3cr3t' }
+            }
+          }
+        }
+      },
+      bin: {
+        type: 'dir',
+        children: {
+          'hack.exe': { type: 'file', content: 'Running hack...' }
+        }
+      }
+    }
+  }
+};
+
+function refreshPrompt() {
+  const pr = document.getElementById('termPrompt');
+  if (pr) pr.innerText = `${NEXUS.user}@nexus:${NEXUS.currentPath}$ `;
+}
+
+function resolvePath(inputPath) {
+  if (!inputPath || inputPath.trim() === '') return NEXUS.currentPath;
+  let path = inputPath.trim();
+  let parts = [];
+  if (path.startsWith('/')) parts = path.split('/').filter(Boolean);
+  else parts = NEXUS.currentPath.split('/').filter(Boolean).concat(path.split('/').filter(Boolean));
+
+  const stack = [];
+  for (const p of parts) {
+    if (p === '.' || p === '') continue;
+    if (p === '..') {
+      stack.pop();
+    } else {
+      stack.push(p);
+    }
+  }
+
+  return '/' + stack.join('/');
+}
+
+function getNode(path, create = false, createType = 'dir') {
+  const p = resolvePath(path);
+  const parts = p.split('/').filter(Boolean);
+  let node = NEXUS.fs;
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!node.children) return null;
+    if (!(part in node.children)) {
+      if (create) {
+        node.children[part] = {
+          type: i === parts.length - 1 ? createType : 'dir',
+          children: createType === 'dir' ? {} : undefined,
+          content: createType === 'file' ? '' : undefined
+        };
+      } else {
+        return null;
+      }
+    }
+    node = node.children[part];
+  }
+
+  return node;
+}
+
+function listPath(path) {
+  const node = getNode(path);
+  if (!node) return { error: 'No such file or directory' };
+  if (node.type !== 'dir') return { error: 'Not a directory' };
+
+  const names = Object.entries(node.children).map(([name, child]) => child.type === 'dir' ? name + '/' : name);
+  return { list: names.sort() };
+}
+
+function appendTerminalLine(text, style = '--text', useHtml = false) {
+  const win = document.querySelector('.window.active');
+  if (!win) return;
+  const history = win.querySelector('#termHistory');
+  if (!history) return;
+
+  const line = document.createElement('div');
+  if (useHtml) line.innerHTML = text;
+  else line.textContent = text;
+
+  if (style === 'success') line.style.color = 'var(--success)';
+  else if (style === 'error') line.style.color = 'var(--danger)';
+  else if (style === 'warning') line.style.color = '#fbbf24';
+  else line.style.color = '#ccc';
+
+  history.appendChild(line);
+  history.parentElement.scrollTop = history.parentElement.scrollHeight;
+}
+
+function typeTerminalText(text, style='--text', callback) {
+  // Optional typing effect
+  const win = document.querySelector('.window.active');
+  const history = win ? win.querySelector('#termHistory') : null;
+  if (!history) { if (callback) callback(); return; }
+
+  let idx = 0;
+  const line = document.createElement('div');
+  history.appendChild(line);
+  function step() {
+    if (idx < text.length) {
+      line.textContent += text[idx++];
+      history.parentElement.scrollTop = history.parentElement.scrollHeight;
+      setTimeout(step, 8);
+    } else {
+      if (style === 'success') line.style.color = 'var(--success)';
+      else if (style === 'error') line.style.color = 'var(--danger)';
+      else line.style.color = '#ccc';
+      if (callback) callback();
+    }
+  }
+  step();
+}
+
+function runSysCommand(command, args) {
+  const rootOnly = ['rm', 'mkdir', 'touch', 'kill', 'hash', 'encrypt', 'track', 'scan', 'reboot'];
+  if (rootOnly.includes(command) && NEXUS.user !== 'root') {
+    appendTerminalLine('Permission denied: root required', 'error');
+    return;
+  }
+
+  switch (command) {
+    case 'help':
+      appendTerminalLine('Commands: ' + NEXUS.commands.join(', '), 'success');
+      break;
+    case 'clear':
+      {
+        const win = document.querySelector('.window.active');
+        if (!win) return;
+        const hist = win.querySelector('#termHistory');
+        if (hist) hist.innerHTML = '';
+        break;
+      }
+    case 'pwd':
+      appendTerminalLine(NEXUS.currentPath, 'success');
+      break;
+    case 'whoami':
+      appendTerminalLine(`${NEXUS.user} (uid=${NEXUS.uid})`, 'success');
+      break;
+    case 'ls':
+      {
+        const target = args[0] || '.';
+        const res = listPath(target);
+        if (res.error) appendTerminalLine(res.error, 'error');
+        else appendTerminalLine(res.list.join('  '), 'success');
+      }
+      break;
+    case 'cd':
+      {
+        const target = args[0] || '/';
+        const resolved = resolvePath(target);
+        const node = getNode(resolved);
+        if (!node) appendTerminalLine('No such directory', 'error');
+        else if (node.type !== 'dir') appendTerminalLine('Not a directory', 'error');
+        else {
+          NEXUS.currentPath = resolved;
+          refreshPrompt();
+        }
+      }
+      break;
+    case 'mkdir':
+      {
+        const target = args[0];
+        if (!target) return appendTerminalLine('mkdir: missing operand', 'error');
+        const resolved = resolvePath(target);
+        if (getNode(resolved)) return appendTerminalLine('mkdir: File exists', 'error');
+        getNode(resolved, true, 'dir');
+        appendTerminalLine(`Directory created: ${resolved}`, 'success');
+      }
+      break;
+    case 'touch':
+      {
+        const target = args[0];
+        if (!target) return appendTerminalLine('touch: missing file operand', 'error');
+        const resolved = resolvePath(target);
+        const node = getNode(resolved);
+        if (node && node.type === 'dir') return appendTerminalLine('touch: cannot create file with directory name', 'error');
+        if (!node) {
+          getNode(resolved, true, 'file');
+          appendTerminalLine(`File created: ${resolved}`, 'success');
+        } else appendTerminalLine(`File already exists: ${resolved}`, 'warning');
+      }
+      break;
+    case 'rm':
+      {
+        const target = args[0];
+        if (!target) return appendTerminalLine('rm: missing operand', 'error');
+        const resolved = resolvePath(target);
+        if (resolved === '/') return appendTerminalLine('rm: cannot remove root', 'error');
+        const parentPath = resolved.split('/').slice(0, -1).join('/') || '/';
+        const name = resolved.split('/').pop();
+        const parent = getNode(parentPath);
+        if (!parent || !parent.children || !parent.children[name]) return appendTerminalLine('rm: No such file or directory', 'error');
+        delete parent.children[name];
+        appendTerminalLine(`Removed: ${resolved}`, 'success');
+      }
+      break;
+    case 'cat':
+      {
+        const target = args[0];
+        if (!target) return appendTerminalLine('cat: missing file operand', 'error');
+        const resolved = resolvePath(target);
+        const node = getNode(resolved);
+        if (!node) return appendTerminalLine('cat: No such file', 'error');
+        if (node.type !== 'file') return appendTerminalLine('cat: Is a directory', 'error');
+        appendTerminalLine(node.content || '', 'success');
+      }
+      break;
+    case 'history':
+      NEXUS.history.forEach((cmd, idx) => appendTerminalLine(`${idx + 1}  ${cmd}`, 'success'));
+      break;
+    case 'ps':
+      NEXUS.processes.forEach(p => appendTerminalLine(`${p.pid}	${p.user}	${p.status}	${p.name}`, 'success'));
+      break;
+    case 'kill':
+      {
+        const pid = Number(args[0]);
+        if (isNaN(pid)) return appendTerminalLine('kill: invalid pid', 'error');
+        if (pid === 0) return appendTerminalLine('kill: cannot kill kernel process', 'error');
+        const proc = NEXUS.processes.find(p => p.pid === pid);
+        if (!proc) return appendTerminalLine(`kill: pid ${pid} not found`, 'error');
+        proc.status = 'terminated';
+        appendTerminalLine(`killed process ${pid} (${proc.name})`, 'success');
+      }
+      break;
+    case 'scan':
+      if (args[0] === 'network') {
+        appendTerminalLine('Launching NetShark...', 'success');
+        openWindow('netshark');
+      } else appendTerminalLine('scan: unknown target', 'error');
+      break;
+    case 'track':
+      {
+        const target = args.join(' ');
+        if (!target) return appendTerminalLine('track: missing name', 'error');
+        const found = NEXUS.ghostDB.filter(entry => entry.name.toLowerCase().includes(target.toLowerCase()));
+        if (!found.length) return appendTerminalLine('No results found in GhostTrack', 'warning');
+        found.forEach(r => appendTerminalLine(`${r.name} - ${r.profile} - ${r.status}`, 'success'));
+      }
+      break;
+    case 'hash':
+      {
+        const target = args[0];
+        if (!target) return appendTerminalLine('hash: missing file', 'error');
+        const node = getNode(resolvePath(target));
+        if (!node || node.type !== 'file') return appendTerminalLine('hash: file not found', 'error');
+        const data = new TextEncoder().encode(node.content || '');
+        crypto.subtle.digest('SHA-256', data).then(digest => {
+          const hash = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+          appendTerminalLine(`${target}: ${hash}`, 'success');
+        }).catch(() => appendTerminalLine('hash: digest failed', 'error'));
+      }
+      break;
+    case 'encrypt':
+      {
+        const payload = args.join(' ');
+        if (!payload) return appendTerminalLine('encrypt: missing text', 'error');
+        appendTerminalLine(`Encrypted: ${btoa(unescape(encodeURIComponent(payload)))}`, 'success');
+      }
+      break;
+    case 'reboot':
+      appendTerminalLine('Rebooting system...', 'success');
+      setTimeout(() => location.reload(), 600);
+      break;
+    case 'matrix':
+      {
+        appendTerminalLine('Initializing matrix stream...');
+        let counter = 0;
+        const anim = setInterval(() => {
+          const line = Array.from({ length: 60 }).map(() => Math.random() > 0.5 ? '1' : '0').join('');
+          appendTerminalLine(line, 'success');
+          counter += 1;
+          if (counter > 15) clearInterval(anim);
+        }, 80);
+      }
+      break;
+    default:
+      appendTerminalLine(`bash: ${command}: command not found`, 'error');
+  }
+}
+
+function handleTerminal(e) {
+  const input = e.target;
+  if (!input || input.id !== 'realCmdInput') return;
+
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (NEXUS.history.length === 0) return;
+    if (NEXUS.historyIndex === null) {
+      NEXUS.historyIndex = NEXUS.history.length;
+    }
+    NEXUS.historyIndex += e.key === 'ArrowUp' ? -1 : 1;
+    if (NEXUS.historyIndex < 0) NEXUS.historyIndex = 0;
+    if (NEXUS.historyIndex >= NEXUS.history.length) {
+      NEXUS.historyIndex = NEXUS.history.length;
+      input.value = '';
+      return;
+    }
+    input.value = NEXUS.history[NEXUS.historyIndex];
+    return;
+  }
+
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const current = input.value.trim();
+    const matches = NEXUS.commands.filter(c => c.startsWith(current));
+    if (matches.length === 1) {
+      input.value = matches[0] + ' ';
+    } else if (matches.length > 1) {
+      appendTerminalLine('Autocomplete: ' + matches.join(', '), 'warning');
+    }
+    return;
+  }
+
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+
+  const raw = input.value;
+  const cmdline = raw.trim();
+  if (!cmdline) { input.value = ''; return; }
+
+  NEXUS.history.push(cmdline);
+  NEXUS.historyIndex = null;
+
+  const win = document.querySelector('.window.active');
+  const history = win ? win.querySelector('#termHistory') : null;
+  if (history) {
+    const echo = document.createElement('div');
+    echo.innerHTML = `<span style="color:var(--success)">${NEXUS.user}@nexus:${NEXUS.currentPath}$</span> ${raw}`;
+    history.appendChild(echo);
+  }
+
+  const parts = cmdline.split(' ').filter(Boolean);
+  let isSudo = false;
+  if (parts[0] === 'sudo') {
+    isSudo = true;
+    parts.shift();
+  }
+
+  const command = parts[0].toLowerCase();
+  const args = parts.slice(1);
+
+  if (isSudo) {
+    if (NEXUS.user !== 'root') {
+      appendTerminalLine('sudo: authorization failed', 'error');
+      input.value = '';
+      return;
+    }
+  }
+
+  if (!command) {
+    input.value = '';
+    return;
+  }
+
+  runSysCommand(command, args);
+
+  input.value = '';
+  refreshPrompt();
+}
+
+function initTerminal() {
+  refreshPrompt();
+  const input = document.querySelector('.window.active #realCmdInput');
+  if (input) input.focus();
+}
+
+// Hook terminal init on open
+const oldOpenWindow = openWindow;
+openWindow = function(appId) {
+  oldOpenWindow(appId);
+  if (appId === 'terminal') {
+    setTimeout(initTerminal, 50);
+  }
+};
+
+/* --- APP: SOC --- */
+function initSOC(winId) {
+  setTimeout(() => {
+    const canvas = document.querySelector(`#${winId} #socChart`);
+    if(!canvas) return;
+    
+    new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: Array(15).fill(''),
+        datasets: [{
+          data: [10, 15, 8, 12, 20, 18, 25, 22, 30, 28, 35, 20, 15, 10, 5],
+          borderColor: '#06b6d4',
+          backgroundColor: 'rgba(6, 182, 212, 0.1)',
+          fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2
+        }]
+      },
+      options: { 
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { display: false }, y: { display: false } },
+        animation: { duration: 0 } 
+      }
+    });
+
+    const tbody = document.querySelector(`#${winId} #socTableBody`);
+    const interval = setInterval(() => {
+      if(!document.getElementById(winId)) { clearInterval(interval); return; }
+      
+      const ips = ['10.0.0.55', '192.168.1.10', '45.22.11.9', '172.16.0.1'];
+      const types = ['SSH Brute', 'SQL Inject', 'Malware DL', 'Port Scan'];
+      const row = `<tr>
+        <td style="font-family:monospace; padding:5px;">${ips[Math.floor(Math.random()*4)]}</td>
+        <td>${types[Math.floor(Math.random()*4)]}</td>
+        <td>Server-1</td>
+        <td style="color:${Math.random()>0.5?'var(--danger)':'var(--success)'}">${Math.random()>0.5?'BLOCKED':'LOGGED'}</td>
+      </tr>`;
+      tbody.insertAdjacentHTML('afterbegin', row);
+      if(tbody.children.length > 7) tbody.lastChild.remove();
+      
+      // Update alerts randomly
+      if(Math.random()>0.7) document.querySelector(`#${winId} #alertCount`).innerText = Math.floor(Math.random()*20);
+    }, 1500);
+  }, 200);
+}
+
+/* --- APP: NETSHARK --- */
+let sniffInterval;
+let pktCount = 0;
+function initSniffer(winId) {
+  toggleSniffer(winId);
+}
+
+function toggleSniffer(winId) {
+  if(!winId) {
+      const wins = document.querySelectorAll('.window');
+      wins.forEach(w => { if(w.innerHTML.includes('NetShark')) winId = w.id; });
+  }
+  if(!winId) return;
+
+  const btn = document.querySelector(`#${winId} #sniffBtn`);
+  const container = document.querySelector(`#${winId} #packetContainer`);
+  
+  if(sniffInterval) {
+    clearInterval(sniffInterval);
+    sniffInterval = null;
+    btn.innerHTML = `<i class="fa-solid fa-play"></i> Start`;
+    btn.className = "";
+  } else {
+    btn.innerHTML = `<i class="fa-solid fa-stop"></i> Stop`;
+    btn.className = "danger";
+    sniffInterval = setInterval(() => {
+      if(!document.getElementById(winId)) { clearInterval(sniffInterval); return; }
+      
+      const protos = ['TCP', 'UDP', 'HTTP', 'ICMP'];
+      const proto = protos[Math.floor(Math.random()*protos.length)];
+      const color = proto === 'HTTP' ? '#4ade80' : (proto === 'TCP' ? '#60a5fa' : '#f87171');
+      
+      const row = document.createElement('div');
+      row.style.display = "grid";
+      row.style.gridTemplateColumns = "60px 140px 140px 1fr";
+      row.style.padding = "4px 5px";
+      row.style.borderBottom = "1px solid #222";
+      row.style.cursor = "pointer";
+      row.onmouseover = () => row.style.background = "#222";
+      row.onmouseout = () => row.style.background = "transparent";
+      row.onclick = () => document.querySelector(`#${winId} #pktDetail`).innerText = `Packet ${pktCount} | ${proto} | Payload: Encrypted`;
+
+      row.innerHTML = `<span style="color:${color}">${proto}</span><span>192.168.1.${Math.floor(Math.random()*255)}</span><span>10.0.0.1</span><span>Len=${Math.floor(Math.random()*1000)}</span>`;
+      
+      container.prepend(row);
+      if(container.children.length > 30) container.lastChild.remove();
+      
+      pktCount++;
+      const counter = document.querySelector(`#${winId} #packetCount`);
+      if(counter) counter.innerText = `${pktCount} pkts`;
+    }, 500);
+  }
+}
+
+/* --- APP: FORENSICS & CRYPTO --- */
+function handleFile(input) {
+  const file = input.files[0];
+  if(!file) return;
+  
+  // Fake hashing animation
+  const hashDiv = input.parentElement.parentElement.querySelector('#fileHash');
+  hashDiv.innerText = "Calculating...";
+  setTimeout(() => {
+    hashDiv.innerText = "a3f5e9..." + Math.random().toString(16).substr(2, 20);
+    notify("Analysis", "File hash generated.", "success");
+  }, 1000);
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const preview = input.parentElement.parentElement.querySelector('#imgPreview');
+    preview.style.backgroundImage = `url('${e.target.result}')`;
+    preview.innerHTML = "";
+    
+    // Hex
+    const hexDiv = input.parentElement.parentElement.querySelector('#hexContent');
+    hexDiv.innerText = "00 0A 4F 55 99 12 ... (Simulated Hex)";
+  };
+  reader.readAsDataURL(file);
+}
+
+function applyFilter(type) {
+  const preview = document.querySelector('.window.active #imgPreview');
+  if(!preview) return;
+  preview.style.filter = type === 'reset' ? 'none' : `${type}(100%)`;
+}
+
+function doCrypto(action) {
+  const container = document.querySelector('.window.active');
+  const input = container.querySelector('#cryptoInput').value;
+  const output = container.querySelector('#cryptoOutput');
+  if(input) output.value = action === 'enc' ? btoa(input) : atob(input);
+}
+function copyCrypto() {
+    const output = document.querySelector('.window.active #cryptoOutput');
+    output.select(); document.execCommand('copy');
+    notify("System", "Copied to clipboard", "success");
+}
+
+</script>
+</body>
+</html>
