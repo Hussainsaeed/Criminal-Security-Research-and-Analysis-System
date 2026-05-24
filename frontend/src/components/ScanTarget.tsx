@@ -2,30 +2,22 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-type Vulnerability = {
-  id: string;
-  type: 'SQLi' | 'XSS' | 'CSRF' | 'SSRF' | 'RCE' | 'InfoLeak';
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  title: string;
-  evidence: string;
-  confidence: number; // 0..100
-};
-
-type ApiResponse = {
-  target: string;
-  scanTime: string;
-  riskScore: number;
-  vulnerabilities: Vulnerability[];
-};
+import type { ApiResponse, ScanSummary } from '@/app/scan/_types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
 
-export default function ScanTarget() {
+export type ScanTargetProps = {
+  onScanComplete?: (summary: ScanSummary, raw: ApiResponse) => void;
+};
+
+export default function ScanTarget({ onScanComplete }: ScanTargetProps) {
   const [url, setUrl] = useState('https://example.com');
   const [status, setStatus] = useState<'idle' | 'scanning' | 'done' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
   const [terminalLines, setTerminalLines] = useState<string[]>([]);
-  const [vulns, setVulns] = useState<Vulnerability[]>([]);
+  const [vulns, setVulns] = useState<ApiResponse['vulnerabilities']>([]);
+
+
   const [errorMsg, setErrorMsg] = useState('');
 
   const timerRef = useRef<number | null>(null);
@@ -109,6 +101,19 @@ export default function ScanTarget() {
 
       setVulns(data.vulnerabilities);
       setStatus('done');
+
+      if (onScanComplete) {
+        const summary: ScanSummary = {
+          totalFindings: data.summary?.totalFindings ?? data.vulnerabilities.length,
+          critical: data.summary?.critical ?? data.vulnerabilities.filter((v) => v.severity === 'critical').length,
+          high: data.summary?.high ?? data.vulnerabilities.filter((v) => v.severity === 'high').length,
+          medium: data.summary?.medium ?? data.vulnerabilities.filter((v) => v.severity === 'medium').length,
+          low: data.summary?.low ?? data.vulnerabilities.filter((v) => v.severity === 'low').length
+        };
+        onScanComplete(summary, data);
+      }
+
+
     } catch (e: any) {
       if (timerRef.current) window.clearInterval(timerRef.current);
       setStatus('error');
