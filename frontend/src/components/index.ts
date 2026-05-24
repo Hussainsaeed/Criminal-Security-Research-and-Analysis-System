@@ -1,3 +1,2 @@
-export * from './servers-overview';
-export * from './create-instance-modal';
+export { default as ScanTarget } from './ScanTarget';
 

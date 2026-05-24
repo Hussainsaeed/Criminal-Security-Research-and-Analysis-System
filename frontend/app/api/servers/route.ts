@@ -41,7 +41,7 @@ function buildMockServers(): Server[] {
     {
       id: 'srv-0x7a31',
       name: 'gateway-prod-01',
-      status: 'online',
+      status: 'online' as const,
       cpu: 23,
       ram: 41,
       ip: '185.44.102.12',
@@ -51,7 +51,7 @@ function buildMockServers(): Server[] {
     {
       id: 'srv-0x7a32',
       name: 'edge-auth-02',
-      status: 'online',
+      status: 'online' as const,
       cpu: 57,
       ram: 68,
       ip: '64.21.98.77',
@@ -71,7 +71,7 @@ function buildMockServers(): Server[] {
     {
       id: 'srv-0x7a34',
       name: 'db-replica-04',
-      status: 'online',
+      status: 'online' as const,
       cpu: 31,
       ram: 52,
       ip: '34.98.12.201',
